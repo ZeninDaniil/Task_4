@@ -1,6 +1,7 @@
 package com.cgvsu;
 
 import com.cgvsu.render_engine.RenderEngine;
+import com.cgvsu.render_engine.TextureManager;
 import com.cgvsu.scene.SceneManager;
 import com.cgvsu.util.ErrorHandler;
 import javafx.fxml.FXML;
@@ -228,10 +229,15 @@ public class GuiController {
         try {
             String fileContent = Files.readString(fileName);
             Model model = ObjReader.read(fileContent);
+            
+            // Автоматическая подготовка модели к рендерингу
+            com.cgvsu.model.ModelProcessor.triangulate(model);
+            com.cgvsu.model.ModelProcessor.calculateNormals(model);
+            
             String modelName = file.getName();
             sceneManager.addModel(model, modelName);
             updateModelsList();
-            ErrorHandler.showInfo("Success", "Model loaded successfully: " + modelName);
+            ErrorHandler.showInfo("Success", "Model loaded and processed successfully: " + modelName);
         } catch (ObjReaderException e) {
             ErrorHandler.showException(e);
         } catch (IOException e) {
@@ -580,4 +586,73 @@ public class GuiController {
         if (activeModel == null) return;
         activeModel.getModel().scale = Math.max(0.01f, activeModel.getModel().scale - MODEL_SCALE_STEP);
     }
+
+    @FXML
+    public void onLoadTextureMenuItemClick() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif"),
+                new FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+        fileChooser.setTitle("Load Texture");
+
+        File file = fileChooser.showOpenDialog(getStage());
+        if (file == null) {
+            return;
+        }
+
+        try {
+            TextureManager.getInstance().loadTexture(file);
+            ErrorHandler.showInfo("Успех", "Текстура загружена: " + file.getName());
+        } catch (IOException e) {
+            ErrorHandler.showError("Ошибка загрузки", "Не удалось загрузить текстуру: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    public void onClearTextureMenuItemClick() {
+        TextureManager.getInstance().setCurrentTexture((javafx.scene.image.WritableImage) null);
+        ErrorHandler.showInfo("Текстура убрана", "Текстура была убрана");
+    }
+
+    @FXML
+    public void onTriangulateModelMenuItemClick() {
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) {
+            ErrorHandler.showError("Модель не выбрана", "Пожалуйста, выберите модель для триангуляции.");
+            return;
+        }
+
+        com.cgvsu.model.ModelProcessor.triangulate(activeModel.getModel());
+        ErrorHandler.showInfo("Успех", "Модель триангулирована успешно");
+    }
+
+    @FXML
+    public void onCalculateNormalsMenuItemClick() {
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) {
+            ErrorHandler.showError("Модель не выбрана", "Пожалуйста, выберите модель для расчета нормалей.");
+            return;
+        }
+
+        com.cgvsu.model.ModelProcessor.calculateNormals(activeModel.getModel());
+        ErrorHandler.showInfo("Успех", "Нормали пересчитаны успешно");
+    }
+
+    @FXML
+    public void onToggleRasterizationMenuItemClick() {
+        boolean currentState = !RenderEngine.useRasterization;
+        RenderEngine.setUseRasterization(currentState);
+        ErrorHandler.showInfo("Режим растеризации", 
+                currentState ? "Растеризация включена" : "Только каркас");
+    }
+
+    @FXML
+    public void onToggleWireframeMenuItemClick() {
+        boolean currentState = !RenderEngine.useWireframe;
+        RenderEngine.setUseWireframe(currentState);
+        ErrorHandler.showInfo("Режим каркаса", 
+                currentState ? "Каркас включен" : "Каркас выключен");
+    }
 }
+

@@ -20,81 +20,92 @@
 <BorderPane fx:id="borderPane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.cgvsu.GuiController">
     <top>
         <MenuBar>
-            <Menu mnemonicParsing="false" text="File">
-                <MenuItem mnemonicParsing="false" onAction="#onOpenModelMenuItemClick" text="Load Model">
+            <Menu mnemonicParsing="false" text="Файл">
+                <MenuItem mnemonicParsing="false" onAction="#onOpenModelMenuItemClick" text="Загрузить модель">
                     <accelerator>
                         <KeyCodeCombination alt="UP" control="DOWN" meta="UP" shift="UP" shortcut="UP" code="O"/>
                     </accelerator>
                 </MenuItem>
-                <MenuItem mnemonicParsing="false" onAction="#onSaveModelMenuItemClick" text="Save Model">
+                <MenuItem mnemonicParsing="false" onAction="#onSaveModelMenuItemClick" text="Сохранить модель">
                     <accelerator>
                         <KeyCodeCombination alt="UP" control="DOWN" meta="UP" shift="UP" shortcut="UP" code="S"/>
                     </accelerator>
                 </MenuItem>
                 <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" onAction="#onSaveModelOriginalMenuItemClick" text="Save Model (Original)"/>
-                <MenuItem mnemonicParsing="false" onAction="#onSaveModelTransformedMenuItemClick" text="Save Model (With Transform)"/>
+                <MenuItem mnemonicParsing="false" onAction="#onSaveModelOriginalMenuItemClick" text="Сохранить исходную"/>
+                <MenuItem mnemonicParsing="false" onAction="#onSaveModelTransformedMenuItemClick" text="Сохранить с трансформацией"/>
             </Menu>
 
-            <Menu mnemonicParsing="false" text="Model">
-                <MenuItem mnemonicParsing="false" onAction="#handleModelReset" text="Reset Transform"/>
+            <Menu mnemonicParsing="false" text="Модель">
+                <MenuItem mnemonicParsing="false" onAction="#onTriangulateModelMenuItemClick" text="Триангулировать"/>
+                <MenuItem mnemonicParsing="false" onAction="#onCalculateNormalsMenuItemClick" text="Пересчитать нормали"/>
                 <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateXPlus" text="Translate +X"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateXMinus" text="Translate -X"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateYPlus" text="Translate +Y"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateYMinus" text="Translate -Y"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateZPlus" text="Translate +Z"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateZMinus" text="Translate -Z"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelReset" text="Сбросить трансформацию"/>
                 <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateXPlus" text="Rotate +X"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateXMinus" text="Rotate -X"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateYPlus" text="Rotate +Y"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateYMinus" text="Rotate -Y"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateZPlus" text="Rotate +Z"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateZMinus" text="Rotate -Z"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateXPlus" text="Сдвиг +X"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateXMinus" text="Сдвиг -X"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateYPlus" text="Сдвиг +Y"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateYMinus" text="Сдвиг -Y"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateZPlus" text="Сдвиг +Z"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelTranslateZMinus" text="Сдвиг -Z"/>
                 <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelScalePlus" text="Scale +"/>
-                <MenuItem mnemonicParsing="false" onAction="#handleModelScaleMinus" text="Scale -"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateXPlus" text="Поворот +X"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateXMinus" text="Поворот -X"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateYPlus" text="Поворот +Y"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateYMinus" text="Поворот -Y"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateZPlus" text="Поворот +Z"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelRotateZMinus" text="Поворот -Z"/>
                 <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" onAction="#onDeleteSelectedVertex" text="Delete Selected Vertex"/>
-                <MenuItem mnemonicParsing="false" onAction="#onDeleteSelectedPolygon" text="Delete Selected Polygon"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelScalePlus" text="Масштаб +"/>
+                <MenuItem mnemonicParsing="false" onAction="#handleModelScaleMinus" text="Масштаб -"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" onAction="#onDeleteSelectedVertex" text="Удалить вершину"/>
+                <MenuItem mnemonicParsing="false" onAction="#onDeleteSelectedPolygon" text="Удалить полигон"/>
             </Menu>
 
-            <Menu mnemonicParsing="false" text="Camera Options">
-                <MenuItem mnemonicParsing="false" onAction="#handleCameraForward" text="Forward">
+            <Menu mnemonicParsing="false" text="Камера">
+                <MenuItem mnemonicParsing="false" onAction="#handleCameraForward" text="Вперед">
                     <accelerator>
                         <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="UP"/>
                     </accelerator>
                 </MenuItem>
-                <MenuItem mnemonicParsing="false" onAction="#handleCameraBackward" text="Backward">
+                <MenuItem mnemonicParsing="false" onAction="#handleCameraBackward" text="Назад">
                     <accelerator>
                         <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="DOWN"/>
                     </accelerator>
                 </MenuItem>
-                <MenuItem mnemonicParsing="false" onAction="#handleCameraLeft" text="Left">
+                <MenuItem mnemonicParsing="false" onAction="#handleCameraLeft" text="Влево">
                     <accelerator>
                         <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="LEFT"/>
                     </accelerator>
                 </MenuItem>
-                <MenuItem mnemonicParsing="false" onAction="#handleCameraRight" text="Right">
+                <MenuItem mnemonicParsing="false" onAction="#handleCameraRight" text="Вправо">
                     <accelerator>
                         <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="RIGHT"/>
                     </accelerator>
                 </MenuItem>
-                <MenuItem mnemonicParsing="false" onAction="#handleCameraUp" text="Up">
+                <MenuItem mnemonicParsing="false" onAction="#handleCameraUp" text="Вверх">
                     <accelerator>
                         <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="PAGE_UP"/>
                     </accelerator>
                 </MenuItem>
-                <MenuItem mnemonicParsing="false" onAction="#handleCameraDown" text="Down">
+                <MenuItem mnemonicParsing="false" onAction="#handleCameraDown" text="Вниз">
                     <accelerator>
                         <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="PAGE_DOWN"/>
                     </accelerator>
                 </MenuItem>
             </Menu>
 
-            <Menu mnemonicParsing="false" text="View">
-                <MenuItem mnemonicParsing="false" onAction="#onToggleTheme" text="Toggle Theme (Light/Dark)"/>
+            <Menu mnemonicParsing="false" text="Текстура">
+                <MenuItem mnemonicParsing="false" onAction="#onLoadTextureMenuItemClick" text="Загрузить текстуру..."/>
+                <MenuItem mnemonicParsing="false" onAction="#onClearTextureMenuItemClick" text="Убрать текстуру"/>
+            </Menu>
+
+            <Menu mnemonicParsing="false" text="Вид">
+                <MenuItem mnemonicParsing="false" onAction="#onToggleRasterizationMenuItemClick" text="Переключить растеризацию"/>
+                <MenuItem mnemonicParsing="false" onAction="#onToggleWireframeMenuItemClick" text="Переключить каркас"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" onAction="#onToggleTheme" text="Переключить тему (Светлая/Темная)"/>
             </Menu>
         </MenuBar>
     </top>
@@ -104,24 +115,24 @@
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
-            <Label text="Models" styleClass="section-title"/>
+            <Label text="Модели" styleClass="section-title"/>
             <ListView fx:id="modelsListView" prefHeight="200" onMouseClicked="#onModelListClick"/>
             <HBox spacing="5">
-                <Button text="Delete Model" onAction="#onDeleteModel" styleClass="danger-button"/>
+                <Button text="Удалить модель" onAction="#onDeleteModel" styleClass="danger-button"/>
             </HBox>
             <Separator/>
-            <Label text="Model Info" styleClass="section-title"/>
-            <Label fx:id="modelInfoLabel" text="No model selected" wrapText="true"/>
+            <Label text="Информация" styleClass="section-title"/>
+            <Label fx:id="modelInfoLabel" text="Модель не выбрана" wrapText="true"/>
             <Separator/>
-            <Label text="Delete Elements" styleClass="section-title"/>
+            <Label text="Удаление" styleClass="section-title"/>
             <HBox spacing="5">
-                <Button text="Delete Vertex" onAction="#onDeleteSelectedVertex" styleClass="danger-button"/>
+                <Button text="Удалить вершину" onAction="#onDeleteSelectedVertex" styleClass="danger-button"/>
             </HBox>
             <HBox spacing="5">
-                <Button text="Delete Polygon" onAction="#onDeleteSelectedPolygon" styleClass="danger-button"/>
+                <Button text="Удалить полигон" onAction="#onDeleteSelectedPolygon" styleClass="danger-button"/>
             </HBox>
             <Separator/>
-            <ToggleButton fx:id="themeToggle" text="Dark Theme" onAction="#onToggleTheme"/>
+            <ToggleButton fx:id="themeToggle" text="Темная тема" onAction="#onToggleTheme"/>
         </VBox>
     </left>
     
