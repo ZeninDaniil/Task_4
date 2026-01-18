@@ -26,4 +26,46 @@ public class Model {
 
         return (Matrix4f) t.multiply(rz).multiply(ry).multiply(rx).multiply(s);
     }
+
+    public void removeVertex(int index) {
+        if (index < 0 || index >= vertices.size()) {
+            return;
+        }
+        vertices.remove(index);
+        
+        // Обновляем индексы в полигонах
+        for (Polygon polygon : polygons) {
+            ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+            for (int i = vertexIndices.size() - 1; i >= 0; i--) {
+                int vertexIndex = vertexIndices.get(i);
+                if (vertexIndex == index) {
+                    vertexIndices.remove(i);
+                } else if (vertexIndex > index) {
+                    vertexIndices.set(i, vertexIndex - 1);
+                }
+            }
+        }
+        
+        // Удаляем полигоны с менее чем 3 вершинами
+        polygons.removeIf(p -> p.getVertexIndices().size() < 3);
+    }
+
+    public void removePolygon(int index) {
+        if (index < 0 || index >= polygons.size()) {
+            return;
+        }
+        polygons.remove(index);
+    }
+
+    public void removePolygons(ArrayList<Integer> indices) {
+        // Сортируем по убыванию, чтобы удаление не влияло на индексы
+        ArrayList<Integer> sortedIndices = new ArrayList<>(indices);
+        sortedIndices.sort(Collections.reverseOrder());
+        
+        for (int index : sortedIndices) {
+            if (index >= 0 && index < polygons.size()) {
+                polygons.remove(index);
+            }
+        }
+    }
 }

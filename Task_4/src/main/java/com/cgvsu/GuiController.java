@@ -1,16 +1,30 @@
 package com.cgvsu;
 
 import com.cgvsu.render_engine.RenderEngine;
+import com.cgvsu.scene.SceneManager;
+import com.cgvsu.util.ErrorHandler;
 import javafx.fxml.FXML;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
+import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
@@ -19,23 +33,13 @@ import java.nio.charset.StandardCharsets;
 import com.cgvsu.math.vector.impl.Vector3fImpl;
 
 import com.cgvsu.model.Model;
-import com.cgvsu.model.ModelProcessor;
 import com.cgvsu.objreader.ObjReader;
+import com.cgvsu.objreader.ObjReaderException;
 import com.cgvsu.objwriter.ObjWriter;
 import com.cgvsu.render_engine.Camera;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.input.ScrollEvent;
 
 import java.util.HashSet;
 import java.util.Set;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.layout.VBox;
 
 public class GuiController {
 
@@ -45,41 +49,28 @@ public class GuiController {
     final private float MODEL_SCALE_STEP = 0.1F;
 
     @FXML
+    BorderPane borderPane;
+
+    @FXML
     AnchorPane anchorPane;
 
     @FXML
     private Canvas canvas;
 
     @FXML
-    private Button runTestsButton;
+    private ListView<SceneManager.SceneModel> modelsListView;
 
     @FXML
-    private Button loadModelButton;
+    private Label modelInfoLabel;
 
     @FXML
-    private Button triangulateButton;
+    private ToggleButton themeToggle;
 
     @FXML
-    private Button recalculateNormalsButton;
+    private VBox sidePanel;
 
-    @FXML
-    private Label verticesLabel;
-
-    @FXML
-    private Label polygonsLabel;
-
-    @FXML
-    private Label normalsLabel;
-
-    @FXML
-    private VBox controlPanel;
-
-    @FXML
-    private ToggleButton fillPolygonsToggle;
-
-    private Model mesh = null;
-
-    private boolean fillPolygonsEnabled = false;
+    private SceneManager sceneManager = new SceneManager();
+    private boolean isDarkTheme = false;
 
     private Camera camera = new Camera(
         new Vector3fImpl(0, 0, 100),
@@ -102,6 +93,25 @@ public class GuiController {
         anchorPane.prefWidthProperty().addListener((ov, oldValue, newValue) -> canvas.setWidth(newValue.doubleValue()));
         anchorPane.prefHeightProperty().addListener((ov, oldValue, newValue) -> canvas.setHeight(newValue.doubleValue()));
 
+        // Настройка ListView для моделей
+        modelsListView.setCellFactory(param -> new ListCell<SceneManager.SceneModel>() {
+            @Override
+            protected void updateItem(SceneManager.SceneModel item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item.getName() + " (ID: " + item.getId() + ")");
+                    if (sceneManager.getActiveModel() == item) {
+                        setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
+        });
+
         timeline = new Timeline();
         timeline.setCycleCount(Animation.INDEFINITE);
 
@@ -116,10 +126,11 @@ public class GuiController {
             canvas.getGraphicsContext2D().clearRect(0, 0, width, height);
             camera.setAspectRatio((float) (width / height));
 
-            if (mesh != null) {
-                RenderEngine.render(canvas.getGraphicsContext2D(), camera, mesh, (int) width, (int) height, fillPolygonsEnabled);
+            if (sceneManager.hasModels()) {
+                RenderEngine.renderScene(canvas.getGraphicsContext2D(), camera, sceneManager, (int) width, (int) height);
             }
 
+            updateModelInfo();
             handleContinuousInput(dt);
 
         });
@@ -128,6 +139,8 @@ public class GuiController {
         timeline.play();
 
         setupFpsControls();
+        updateModelsList();
+        applyTheme();
 
         anchorPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene == null) return;
@@ -205,7 +218,7 @@ public class GuiController {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
         fileChooser.setTitle("Load Model");
 
-        File file = fileChooser.showOpenDialog((Stage) canvas.getScene().getWindow());
+        File file = fileChooser.showOpenDialog(getStage());
         if (file == null) {
             return;
         }
@@ -214,85 +227,53 @@ public class GuiController {
 
         try {
             String fileContent = Files.readString(fileName);
-            mesh = ObjReader.read(fileContent);
-            // Пересчитываем нормали (даже если сохранены в файле)
-            ModelProcessor.calculateNormals(mesh);
-            // Обновляем информацию о модели
-            updateModelInfo();
-            // Включаем кнопки для обработки
-            triangulateButton.setDisable(false);
-            recalculateNormalsButton.setDisable(false);
-            // todo: обработка ошибок
-        } catch (IOException exception) {
-
+            Model model = ObjReader.read(fileContent);
+            String modelName = file.getName();
+            sceneManager.addModel(model, modelName);
+            updateModelsList();
+            ErrorHandler.showInfo("Success", "Model loaded successfully: " + modelName);
+        } catch (ObjReaderException e) {
+            ErrorHandler.showException(e);
+        } catch (IOException e) {
+            ErrorHandler.showError("File Error", "Failed to read file: " + e.getMessage());
+        } catch (Exception e) {
+            ErrorHandler.showException(e);
         }
     }
 
     @FXML
-    private void onLoadModelButtonClick() {
-        onOpenModelMenuItemClick();
-    }
-
-    @FXML
-    private void onTriangulateButtonClick() {
-        if (mesh != null) {
-            ModelProcessor.triangulate(mesh);
-            updateModelInfo();
+    private void onSaveModelMenuItemClick() {
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) {
+            ErrorHandler.showError("No Model Selected", "Please select a model to save.");
+            return;
         }
-    }
-
-    @FXML
-    private void onRecalculateNormalsButtonClick() {
-        if (mesh != null) {
-            ModelProcessor.calculateNormals(mesh);
-            updateModelInfo();
-        }
-    }
-
-    private void updateModelInfo() {
-        if (mesh != null) {
-            verticesLabel.setText("Vertices: " + mesh.vertices.size());
-            polygonsLabel.setText("Polygons: " + mesh.polygons.size());
-            normalsLabel.setText("Normals: " + mesh.normals.size());
-        } else {
-            verticesLabel.setText("Vertices: 0");
-            polygonsLabel.setText("Polygons: 0");
-            normalsLabel.setText("Normals: 0");
-        }
+        saveModel(activeModel.getModel(), false);
     }
 
     @FXML
     private void onSaveModelOriginalMenuItemClick() {
-        saveModel(false);
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) {
+            ErrorHandler.showError("No Model Selected", "Please select a model to save.");
+            return;
+        }
+        saveModel(activeModel.getModel(), false);
     }
 
     @FXML
     private void onSaveModelTransformedMenuItemClick() {
-        saveModel(true);
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) {
+            ErrorHandler.showError("No Model Selected", "Please select a model to save.");
+            return;
+        }
+        saveModel(activeModel.getModel(), true);
     }
 
-    @FXML
-    private void onRunTestsMenuItemClick() {
-        String testResults = TestRunner.runTests();
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Test Results");
-        alert.setHeaderText("Test Execution Summary");
-        alert.setContentText(testResults);
-        alert.showAndWait();
-    }
-
-    @FXML
-    private void onRunTestsButtonClick() {
-        onRunTestsMenuItemClick();
-    }
-
-    @FXML
-    private void onFillPolygonsToggle() {
-        fillPolygonsEnabled = fillPolygonsToggle.isSelected();
-    }
-
-    private void saveModel(final boolean applyTransform) {
-        if (mesh == null) {
+    private void saveModel(final Model model, final boolean applyTransform) {
+        if (model == null) {
+            ErrorHandler.showError("No Model", "No model to save.");
             return;
         }
 
@@ -300,17 +281,166 @@ public class GuiController {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
         fileChooser.setTitle(applyTransform ? "Save Model (With Transform)" : "Save Model (Original)");
 
-        File file = fileChooser.showSaveDialog((Stage) canvas.getScene().getWindow());
+        File file = fileChooser.showSaveDialog(getStage());
         if (file == null) {
             return;
         }
 
-        String content = ObjWriter.write(mesh, applyTransform);
         try {
+            String content = ObjWriter.write(model, applyTransform);
             Files.writeString(Path.of(file.getAbsolutePath()), content, StandardCharsets.UTF_8);
-        } catch (IOException exception) {
-            // todo: show error dialog
+            ErrorHandler.showInfo("Success", "Model saved successfully.");
+        } catch (IOException e) {
+            ErrorHandler.showError("Save Error", "Failed to save file: " + e.getMessage());
+        } catch (Exception e) {
+            ErrorHandler.showException(e);
         }
+    }
+
+    @FXML
+    public void onModelListClick(MouseEvent event) {
+        SceneManager.SceneModel selected = modelsListView.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            sceneManager.setActiveModel(selected);
+            updateModelsList();
+        }
+    }
+
+    @FXML
+    public void onDeleteModel() {
+        SceneManager.SceneModel selected = modelsListView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            ErrorHandler.showError("No Selection", "Please select a model to delete.");
+            return;
+        }
+
+        if (ErrorHandler.showConfirmation("Delete Model", "Are you sure?", 
+                "Do you want to delete model: " + selected.getName() + "?")) {
+            sceneManager.removeModel(selected);
+            updateModelsList();
+        }
+    }
+
+    private void updateModelsList() {
+        ObservableList<SceneManager.SceneModel> items = FXCollections.observableArrayList(sceneManager.getModels());
+        modelsListView.setItems(items);
+        if (!items.isEmpty() && sceneManager.getActiveModel() != null) {
+            modelsListView.getSelectionModel().select(sceneManager.getActiveModel());
+        }
+    }
+
+    private void updateModelInfo() {
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) {
+            modelInfoLabel.setText("No model selected");
+            return;
+        }
+
+        Model model = activeModel.getModel();
+        StringBuilder info = new StringBuilder();
+        info.append("Name: ").append(activeModel.getName()).append("\n");
+        info.append("Vertices: ").append(model.vertices.size()).append("\n");
+        info.append("Polygons: ").append(model.polygons.size()).append("\n");
+        info.append("Translation: (").append(String.format("%.2f", model.translation.x))
+            .append(", ").append(String.format("%.2f", model.translation.y))
+            .append(", ").append(String.format("%.2f", model.translation.z)).append(")\n");
+        info.append("Rotation: (").append(String.format("%.2f", model.rotation.x))
+            .append(", ").append(String.format("%.2f", model.rotation.y))
+            .append(", ").append(String.format("%.2f", model.rotation.z)).append(")\n");
+        info.append("Scale: ").append(String.format("%.2f", model.scale));
+        
+        modelInfoLabel.setText(info.toString());
+    }
+
+    @FXML
+    public void onDeleteSelectedVertex() {
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) {
+            ErrorHandler.showError("No Model Selected", "Please select a model first.");
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Delete Vertex");
+        dialog.setHeaderText("Enter vertex index to delete");
+        dialog.setContentText("Index:");
+
+        dialog.showAndWait().ifPresent(indexStr -> {
+            try {
+                int index = Integer.parseInt(indexStr);
+                Model model = activeModel.getModel();
+                if (index < 0 || index >= model.vertices.size()) {
+                    ErrorHandler.showError("Invalid Index", "Vertex index out of range.");
+                    return;
+                }
+                model.removeVertex(index);
+                ErrorHandler.showInfo("Success", "Vertex deleted successfully.");
+            } catch (NumberFormatException e) {
+                ErrorHandler.showError("Invalid Input", "Please enter a valid number.");
+            }
+        });
+    }
+
+    @FXML
+    public void onDeleteSelectedPolygon() {
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) {
+            ErrorHandler.showError("No Model Selected", "Please select a model first.");
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Delete Polygon");
+        dialog.setHeaderText("Enter polygon index to delete");
+        dialog.setContentText("Index:");
+
+        dialog.showAndWait().ifPresent(indexStr -> {
+            try {
+                int index = Integer.parseInt(indexStr);
+                Model model = activeModel.getModel();
+                if (index < 0 || index >= model.polygons.size()) {
+                    ErrorHandler.showError("Invalid Index", "Polygon index out of range.");
+                    return;
+                }
+                model.removePolygon(index);
+                ErrorHandler.showInfo("Success", "Polygon deleted successfully.");
+            } catch (NumberFormatException e) {
+                ErrorHandler.showError("Invalid Input", "Please enter a valid number.");
+            }
+        });
+    }
+
+    @FXML
+    public void onToggleTheme() {
+        isDarkTheme = !isDarkTheme;
+        applyTheme();
+    }
+
+    private void applyTheme() {
+        Scene scene = borderPane.getScene();
+        if (scene == null) return;
+
+        if (isDarkTheme) {
+            scene.getStylesheets().clear();
+            scene.getStylesheets().add(getClass().getResource("/com/cgvsu/styles/dark-theme.css").toExternalForm());
+            themeToggle.setText("Light Theme");
+        } else {
+            scene.getStylesheets().clear();
+            scene.getStylesheets().add(getClass().getResource("/com/cgvsu/styles/light-theme.css").toExternalForm());
+            themeToggle.setText("Dark Theme");
+        }
+    }
+
+    private Stage getStage() {
+        Scene scene = borderPane.getScene();
+        if (scene != null) {
+            return (Stage) scene.getWindow();
+        }
+        // Fallback на canvas, если borderPane еще не добавлен в сцену
+        if (canvas.getScene() != null) {
+            return (Stage) canvas.getScene().getWindow();
+        }
+        return null;
     }
 
     @FXML
@@ -345,94 +475,109 @@ public class GuiController {
 
     @FXML
     public void handleModelReset(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.translation = new com.cgvsu.math.Vector3f(0f, 0f, 0f);
-        mesh.rotation = new com.cgvsu.math.Vector3f(0f, 0f, 0f);
-        mesh.scale = 1f;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        Model model = activeModel.getModel();
+        model.translation = new com.cgvsu.math.Vector3f(0f, 0f, 0f);
+        model.rotation = new com.cgvsu.math.Vector3f(0f, 0f, 0f);
+        model.scale = 1f;
     }
 
     @FXML
     public void handleModelTranslateXPlus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.translation.x += MODEL_TRANSLATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().translation.x += MODEL_TRANSLATION;
     }
 
     @FXML
     public void handleModelTranslateXMinus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.translation.x -= MODEL_TRANSLATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().translation.x -= MODEL_TRANSLATION;
     }
 
     @FXML
     public void handleModelTranslateYPlus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.translation.y += MODEL_TRANSLATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().translation.y += MODEL_TRANSLATION;
     }
 
     @FXML
     public void handleModelTranslateYMinus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.translation.y -= MODEL_TRANSLATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().translation.y -= MODEL_TRANSLATION;
     }
 
     @FXML
     public void handleModelTranslateZPlus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.translation.z += MODEL_TRANSLATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().translation.z += MODEL_TRANSLATION;
     }
 
     @FXML
     public void handleModelTranslateZMinus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.translation.z -= MODEL_TRANSLATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().translation.z -= MODEL_TRANSLATION;
     }
 
     @FXML
     public void handleModelRotateXPlus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.rotation.x += MODEL_ROTATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().rotation.x += MODEL_ROTATION;
     }
 
     @FXML
     public void handleModelRotateXMinus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.rotation.x -= MODEL_ROTATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().rotation.x -= MODEL_ROTATION;
     }
 
     @FXML
     public void handleModelRotateYPlus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.rotation.y += MODEL_ROTATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().rotation.y += MODEL_ROTATION;
     }
 
     @FXML
     public void handleModelRotateYMinus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.rotation.y -= MODEL_ROTATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().rotation.y -= MODEL_ROTATION;
     }
 
     @FXML
     public void handleModelRotateZPlus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.rotation.z += MODEL_ROTATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().rotation.z += MODEL_ROTATION;
     }
 
     @FXML
     public void handleModelRotateZMinus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.rotation.z -= MODEL_ROTATION;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().rotation.z -= MODEL_ROTATION;
     }
 
-    // Scale (uniform)
     @FXML
     public void handleModelScalePlus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.scale += MODEL_SCALE_STEP;
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().scale += MODEL_SCALE_STEP;
     }
 
     @FXML
     public void handleModelScaleMinus(ActionEvent actionEvent) {
-        if (mesh == null) return;
-        mesh.scale = Math.max(0.01f, mesh.scale - MODEL_SCALE_STEP);
+        SceneManager.SceneModel activeModel = sceneManager.getActiveModel();
+        if (activeModel == null) return;
+        activeModel.getModel().scale = Math.max(0.01f, activeModel.getModel().scale - MODEL_SCALE_STEP);
     }
 }

@@ -3,7 +3,7 @@ package com.cgvsu;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -13,14 +13,16 @@ public class Simple3DViewer extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        AnchorPane viewport = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("fxml/gui.fxml")));
+        BorderPane root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("fxml/gui.fxml")));
 
-        Scene scene = new Scene(viewport);
-    viewport.requestFocus();
+        Scene scene = new Scene(root);
+        // Применяем светлую тему по умолчанию
+        scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("styles/light-theme.css")).toExternalForm());
+        
         stage.setMinWidth(1600);
         stage.setMinHeight(900);
-        viewport.prefWidthProperty().bind(scene.widthProperty());
-        viewport.prefHeightProperty().bind(scene.heightProperty());
+        root.prefWidthProperty().bind(scene.widthProperty());
+        root.prefHeightProperty().bind(scene.heightProperty());
 
         stage.setTitle("Simple3DViewer");
         stage.setScene(scene);
