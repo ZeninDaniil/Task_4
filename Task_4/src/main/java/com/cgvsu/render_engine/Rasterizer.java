@@ -30,6 +30,35 @@ public class Rasterizer {
             WritableImage texture,
             Vector3f lightDir,
             float ambientStrength) {
+        rasterizeTriangle(v0, v1, v2, n0, n1, n2, t0, t1, t2, color, zBuffer, pixelWriter, texture, lightDir, ambientStrength, true, 1.0f);
+    }
+    
+    /**
+     * Растеризация треугольника с использованием барицентрических координат (расширенная версия)
+     * @param v0, v1, v2 - вершины треугольника (x, y, z)
+     * @param n0, n1, n2 - нормали вершин
+     * @param t0, t1, t2 - текстурные координаты (могут быть null)
+     * @param color - цвет для заливки
+     * @param zBuffer - Z-буфер для проверки глубины
+     * @param pixelWriter - для записи пикселей
+     * @param texture - текстура (может быть null)
+     * @param lightDir - направление света (нормализованное)
+     * @param ambientStrength - сила окружающего освещения (0-1)
+     * @param lightEnabled - включено ли освещение
+     * @param lightIntensity - интенсивность света (0-2)
+     */
+    public static void rasterizeTriangle(
+            Vector3f v0, Vector3f v1, Vector3f v2,
+            Vector3f n0, Vector3f n1, Vector3f n2,
+            Vector2f t0, Vector2f t1, Vector2f t2,
+            Color color,
+            ZBuffer zBuffer,
+            PixelWriter pixelWriter,
+            WritableImage texture,
+            Vector3f lightDir,
+            float ambientStrength,
+            boolean lightEnabled,
+            float lightIntensity) {
 
         // Находим ограничивающий прямоугольник
         int minX = (int) Math.max(0, Math.min(Math.min(v0.x, v1.x), v2.x));
@@ -60,10 +89,14 @@ public class Rasterizer {
                 Vector3f normal = interpolateVector(n0, n1, n2, bary);
                 normal.normalize();
 
-                // Вычисляем освещение (простая модель Ламберта)
-                float diffuse = Math.max(0, Vector3f.dot(normal, lightDir));
-                float lightIntensity = ambientStrength + (1 - ambientStrength) * diffuse;
-                lightIntensity = Math.min(1.0f, lightIntensity);
+                // Вычисляем освещение
+                float finalLightIntensity = 1.0f;
+                if (lightEnabled) {
+                    // Простая модель Ламберта
+                    float diffuse = Math.max(0, Vector3f.dot(normal, lightDir));
+                    finalLightIntensity = ambientStrength + (1 - ambientStrength) * diffuse * lightIntensity;
+                    finalLightIntensity = Math.min(1.0f, finalLightIntensity);
+                }
 
                 Color finalColor = color;
 
@@ -75,9 +108,9 @@ public class Rasterizer {
 
                 // Применяем освещение
                 finalColor = new Color(
-                        finalColor.getRed() * lightIntensity,
-                        finalColor.getGreen() * lightIntensity,
-                        finalColor.getBlue() * lightIntensity,
+                        finalColor.getRed() * finalLightIntensity,
+                        finalColor.getGreen() * finalLightIntensity,
+                        finalColor.getBlue() * finalLightIntensity,
                         finalColor.getOpacity()
                 );
 

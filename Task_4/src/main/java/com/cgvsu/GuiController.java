@@ -665,5 +665,13 @@ public class GuiController {
         ErrorHandler.showInfo("Режим каркаса", 
                 currentState ? "Каркас включен" : "Каркас выключен");
     }
+    
+    @FXML
+    public void onToggleLightMenuItemClick() {
+        boolean currentState = !RenderEngine.isLightEnabled();
+        RenderEngine.setLightEnabled(currentState);
+        ErrorHandler.showInfo("Освещение", 
+                currentState ? "Освещение включено" : "Освещение выключено");
+    }
 }
 

@@ -20,12 +20,22 @@ import com.cgvsu.scene.SceneManager;
 
 public class RenderEngine {
 
-    public static boolean useRasterization = true;
+    public static boolean useRasterization = false;  // Изначально выключена растеризация
     public static boolean useWireframe = true;
     private static ZBuffer zBuffer;
     private static WritableImage frameBuffer;
     private static Color fillColor = Color.LIGHTGRAY;
-    private static float ambientStrength = 0.3f;
+    private static float ambientStrength = 0.2f;
+    
+    // Настройки источника света
+    public static boolean lightEnabled = true;  // Источник света включен по умолчанию
+    public static Vector3f lightDirection = new Vector3f(-0.5f, -0.5f, 1.0f);  // Направление света (сверху-спереди-справа)
+    public static float lightIntensity = 1.2f;  // Интенсивность света
+    
+    static {
+        // Нормализуем направление света при инициализации
+        lightDirection.normalize();
+    }
 
     public static void setUseRasterization(boolean enabled) {
         useRasterization = enabled;
@@ -41,6 +51,23 @@ public class RenderEngine {
 
     public static void setAmbientStrength(float strength) {
         ambientStrength = Math.max(0, Math.min(1, strength));
+    }
+    
+    public static void setLightEnabled(boolean enabled) {
+        lightEnabled = enabled;
+    }
+    
+    public static boolean isLightEnabled() {
+        return lightEnabled;
+    }
+    
+    public static void setLightDirection(float x, float y, float z) {
+        lightDirection = new Vector3f(x, y, z);
+        lightDirection.normalize();
+    }
+    
+    public static void setLightIntensity(float intensity) {
+        lightIntensity = Math.max(0, Math.min(2, intensity));
     }
 
     public static void render(
@@ -114,15 +141,6 @@ public class RenderEngine {
         if (hasRasterizedModels) {
             graphicsContext.drawImage(frameBuffer, 0, 0);
         }
-        
-        // Рисуем каркас поверх (если включен)
-        if (useWireframe && hasRasterizedModels) {
-            graphicsContext.setStroke(Color.BLACK);
-            graphicsContext.setLineWidth(1);
-            for (SceneManager.SceneModel sceneModel : models) {
-                renderModel(graphicsContext, camera, sceneModel.getModel(), width, height);
-            }
-        }
     }
 
     private static void renderModel(
@@ -139,14 +157,40 @@ public class RenderEngine {
         Matrix4f modelViewProjectionMatrix = (Matrix4f) projectionMatrix
                 .multiply(viewMatrix)
                 .multiply(modelMatrix);
+        
+        Matrix4f modelViewMatrix = (Matrix4f) viewMatrix.multiply(modelMatrix);
 
         final int nPolygons = mesh.polygons.size();
         for (int polygonInd = 0; polygonInd < nPolygons; ++polygonInd) {
-            final int nVerticesInPolygon = mesh.polygons.get(polygonInd).getVertexIndices().size();
+            Polygon polygon = mesh.polygons.get(polygonInd);
+            final int nVerticesInPolygon = polygon.getVertexIndices().size();
+
+            // Вычисляем освещение для полигона
+            float lightIntensityValue = 1.0f;
+            if (lightEnabled && !mesh.normals.isEmpty() && !polygon.getNormalIndices().isEmpty()) {
+                // Берем нормаль первой вершины полигона
+                int normalIndex = polygon.getNormalIndices().get(0);
+                com.cgvsu.math.Vector3f normal = mesh.normals.get(normalIndex);
+                
+                // Преобразуем нормаль в пространство камеры
+                Vector3fImpl normalVec = new Vector3fImpl(normal.x, normal.y, normal.z);
+                Vector3fImpl transformedNormal = multiplyMatrix4ByVector(modelViewMatrix, normalVec);
+                Vector3f normalV3 = new Vector3f(transformedNormal.getX(), transformedNormal.getY(), transformedNormal.getZ());
+                normalV3.normalize();
+                
+                // Вычисляем освещение
+                float diffuse = Math.max(0, Vector3f.dot(normalV3, lightDirection));
+                lightIntensityValue = ambientStrength + (1 - ambientStrength) * diffuse * lightIntensity;
+                lightIntensityValue = Math.min(1.0f, Math.max(0.0f, lightIntensityValue));
+            }
+            
+            // Устанавливаем цвет линии в зависимости от освещения
+            Color wireframeColor = Color.gray(lightIntensityValue);
+            graphicsContext.setStroke(wireframeColor);
 
             ArrayList<Vector2fImpl> resultPoints = new ArrayList<>();
             for (int vertexInPolygonInd = 0; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
-                com.cgvsu.math.Vector3f vertex = mesh.vertices.get(mesh.polygons.get(polygonInd).getVertexIndices().get(vertexInPolygonInd));
+                com.cgvsu.math.Vector3f vertex = mesh.vertices.get(polygon.getVertexIndices().get(vertexInPolygonInd));
                 Vector3fImpl v = new Vector3fImpl(vertex.x, vertex.y, vertex.z);
 
                 Vector3fImpl ndc = multiplyMatrix4ByPoint(modelViewProjectionMatrix, v);
@@ -187,8 +231,9 @@ public class RenderEngine {
 
         Matrix4f modelViewMatrix = (Matrix4f) viewMatrix.multiply(modelMatrix);
 
-        // Направление света (от камеры)
-        Vector3f lightDir = new Vector3f(0, 0, 1);
+        // Направление света (от камеры или установленное пользователем)
+        Vector3f lightDir = lightEnabled ? new Vector3f(lightDirection.x, lightDirection.y, lightDirection.z) 
+                                          : new Vector3f(0, 0, 1);
         lightDir.normalize();
 
         PixelWriter pixelWriter = frameBuffer.getPixelWriter();
@@ -254,7 +299,9 @@ public class RenderEngine {
                     pixelWriter,
                     texture,
                     lightDir,
-                    ambientStrength
+                    ambientStrength,
+                    lightEnabled,
+                    lightIntensity
             );
         }
         // Примечание: frameBuffer рисуется один раз после рендеринга всех моделей в renderScene

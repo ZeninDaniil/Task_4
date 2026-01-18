@@ -105,6 +105,8 @@
                 <MenuItem mnemonicParsing="false" onAction="#onToggleRasterizationMenuItemClick" text="Переключить растеризацию"/>
                 <MenuItem mnemonicParsing="false" onAction="#onToggleWireframeMenuItemClick" text="Переключить каркас"/>
                 <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" onAction="#onToggleLightMenuItemClick" text="Переключить освещение"/>
+                <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" onAction="#onToggleTheme" text="Переключить тему (Светлая/Темная)"/>
             </Menu>
         </MenuBar>
