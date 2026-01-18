@@ -158,6 +158,11 @@ public class RenderEngine {
         boolean hasRasterizedModels = false;
         
         for (SceneManager.SceneModel sceneModel : models) {
+            // Рендерим только видимые модели
+            if (!sceneModel.isVisible()) {
+                continue;
+            }
+            
             if (useRasterization) {
                 renderModelRasterized(camera, sceneModel.getModel(), width, height);
                 hasRasterizedModels = true;
@@ -174,7 +179,10 @@ public class RenderEngine {
                 graphicsContext.setStroke(Color.BLACK);
                 graphicsContext.setLineWidth(1);
                 for (SceneManager.SceneModel sceneModel : models) {
-                    renderModel(graphicsContext, camera, sceneModel.getModel(), width, height);
+                    // Рендерим каркас только для видимых моделей
+                    if (sceneModel.isVisible()) {
+                        renderModel(graphicsContext, camera, sceneModel.getModel(), width, height);
+                    }
                 }
             }
         }

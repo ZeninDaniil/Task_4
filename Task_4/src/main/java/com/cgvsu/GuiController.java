@@ -19,6 +19,9 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.TransferMode;
+import javafx.scene.input.Dragboard;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
@@ -169,6 +172,7 @@ public class GuiController {
         timeline.play();
 
         setupFpsControls();
+        setupDragAndDrop();
         updateModelsList();
         applyTheme();
 
@@ -242,17 +246,66 @@ public class GuiController {
         if (pressedKeys.contains(KeyCode.CONTROL)) camera.moveUp(-step);
     }
 
-    @FXML
-    private void onOpenModelMenuItemClick() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
-        fileChooser.setTitle("Load Model");
+    private void setupDragAndDrop() {
+        // Обработка перетаскивания на anchorPane
+        anchorPane.setOnDragOver(event -> {
+            if (event.getDragboard().hasFiles()) {
+                // Проверяем, что перетаскивается файл .obj
+                boolean hasObjFile = event.getDragboard().getFiles().stream()
+                    .anyMatch(file -> file.getName().toLowerCase().endsWith(".obj"));
+                if (hasObjFile) {
+                    event.acceptTransferModes(TransferMode.COPY);
+                }
+            }
+            event.consume();
+        });
 
-        File file = fileChooser.showOpenDialog(getStage());
-        if (file == null) {
-            return;
-        }
+        anchorPane.setOnDragDropped(event -> {
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasFiles()) {
+                for (File file : db.getFiles()) {
+                    if (file.getName().toLowerCase().endsWith(".obj")) {
+                        loadModelFromFile(file);
+                        success = true;
+                        break; // Загружаем только первый .obj файл
+                    }
+                }
+            }
+            event.setDropCompleted(success);
+            event.consume();
+        });
 
+        // Также добавляем обработку на canvas для полноты
+        canvas.setOnDragOver(event -> {
+            if (event.getDragboard().hasFiles()) {
+                boolean hasObjFile = event.getDragboard().getFiles().stream()
+                    .anyMatch(file -> file.getName().toLowerCase().endsWith(".obj"));
+                if (hasObjFile) {
+                    event.acceptTransferModes(TransferMode.COPY);
+                }
+            }
+            event.consume();
+        });
+
+        canvas.setOnDragDropped(event -> {
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasFiles()) {
+                for (File file : db.getFiles()) {
+                    if (file.getName().toLowerCase().endsWith(".obj")) {
+                        loadModelFromFile(file);
+                        success = true;
+                        break;
+                    }
+                }
+            }
+            event.setDropCompleted(success);
+            event.consume();
+        });
+    }
+
+    private void loadModelFromFile(File file) {
         Path fileName = Path.of(file.getAbsolutePath());
 
         try {
@@ -274,6 +327,20 @@ public class GuiController {
         } catch (Exception e) {
             ErrorHandler.showException(e);
         }
+    }
+
+    @FXML
+    private void onOpenModelMenuItemClick() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
+        fileChooser.setTitle("Load Model");
+
+        File file = fileChooser.showOpenDialog(getStage());
+        if (file == null) {
+            return;
+        }
+
+        loadModelFromFile(file);
     }
 
     @FXML
