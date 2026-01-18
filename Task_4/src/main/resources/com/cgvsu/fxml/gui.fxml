@@ -6,6 +6,7 @@
 <?import javafx.scene.input.KeyCodeCombination?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.Button?>
 
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.cgvsu.GuiController">
     <MenuBar>
@@ -73,7 +74,13 @@
                 </accelerator>
             </MenuItem>
         </Menu>
+
+        <Menu mnemonicParsing="false" text="Tests">
+            <MenuItem mnemonicParsing="false" onAction="#onRunTestsMenuItemClick" text="Run Tests"/>
+        </Menu>
     </MenuBar>
 
     <Canvas fx:id="canvas" width="1600" height="870" AnchorPane.topAnchor="30.0"/>
+
+    <Button fx:id="runTestsButton" text="Run Tests" onAction="#onRunTestsButtonClick" AnchorPane.bottomAnchor="10.0" AnchorPane.rightAnchor="10.0"/>
 </AnchorPane>

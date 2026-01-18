@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import com.cgvsu.math.vector.impl.Vector3fImpl;
 
 import com.cgvsu.model.Model;
+import com.cgvsu.model.ModelProcessor;
 import com.cgvsu.objreader.ObjReader;
 import com.cgvsu.objwriter.ObjWriter;
 import com.cgvsu.render_engine.Camera;
@@ -30,6 +31,8 @@ import javafx.scene.input.ScrollEvent;
 
 import java.util.HashSet;
 import java.util.Set;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 
 public class GuiController {
 
@@ -43,6 +46,9 @@ public class GuiController {
 
     @FXML
     private Canvas canvas;
+
+    @FXML
+    private Button runTestsButton;
 
     private Model mesh = null;
 
@@ -180,6 +186,9 @@ public class GuiController {
         try {
             String fileContent = Files.readString(fileName);
             mesh = ObjReader.read(fileContent);
+            // Добавляем триангуляцию и вычисление нормалей
+            ModelProcessor.triangulate(mesh);
+            ModelProcessor.calculateNormals(mesh);
             // todo: обработка ошибок
         } catch (IOException exception) {
 
@@ -194,6 +203,21 @@ public class GuiController {
     @FXML
     private void onSaveModelTransformedMenuItemClick() {
         saveModel(true);
+    }
+
+    @FXML
+    private void onRunTestsMenuItemClick() {
+        String testResults = TestRunner.runTests();
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Test Results");
+        alert.setHeaderText("Test Execution Summary");
+        alert.setContentText(testResults);
+        alert.showAndWait();
+    }
+
+    @FXML
+    private void onRunTestsButtonClick() {
+        onRunTestsMenuItemClick();
     }
 
     private void saveModel(final boolean applyTransform) {
