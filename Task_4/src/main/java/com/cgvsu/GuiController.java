@@ -33,6 +33,9 @@ import java.util.HashSet;
 import java.util.Set;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.layout.VBox;
 
 public class GuiController {
 
@@ -50,7 +53,33 @@ public class GuiController {
     @FXML
     private Button runTestsButton;
 
+    @FXML
+    private Button loadModelButton;
+
+    @FXML
+    private Button triangulateButton;
+
+    @FXML
+    private Button recalculateNormalsButton;
+
+    @FXML
+    private Label verticesLabel;
+
+    @FXML
+    private Label polygonsLabel;
+
+    @FXML
+    private Label normalsLabel;
+
+    @FXML
+    private VBox controlPanel;
+
+    @FXML
+    private ToggleButton fillPolygonsToggle;
+
     private Model mesh = null;
+
+    private boolean fillPolygonsEnabled = false;
 
     private Camera camera = new Camera(
         new Vector3fImpl(0, 0, 100),
@@ -88,7 +117,7 @@ public class GuiController {
             camera.setAspectRatio((float) (width / height));
 
             if (mesh != null) {
-                RenderEngine.render(canvas.getGraphicsContext2D(), camera, mesh, (int) width, (int) height);
+                RenderEngine.render(canvas.getGraphicsContext2D(), camera, mesh, (int) width, (int) height, fillPolygonsEnabled);
             }
 
             handleContinuousInput(dt);
@@ -186,12 +215,49 @@ public class GuiController {
         try {
             String fileContent = Files.readString(fileName);
             mesh = ObjReader.read(fileContent);
-            // Добавляем триангуляцию и вычисление нормалей
-            ModelProcessor.triangulate(mesh);
+            // Пересчитываем нормали (даже если сохранены в файле)
             ModelProcessor.calculateNormals(mesh);
+            // Обновляем информацию о модели
+            updateModelInfo();
+            // Включаем кнопки для обработки
+            triangulateButton.setDisable(false);
+            recalculateNormalsButton.setDisable(false);
             // todo: обработка ошибок
         } catch (IOException exception) {
 
+        }
+    }
+
+    @FXML
+    private void onLoadModelButtonClick() {
+        onOpenModelMenuItemClick();
+    }
+
+    @FXML
+    private void onTriangulateButtonClick() {
+        if (mesh != null) {
+            ModelProcessor.triangulate(mesh);
+            updateModelInfo();
+        }
+    }
+
+    @FXML
+    private void onRecalculateNormalsButtonClick() {
+        if (mesh != null) {
+            ModelProcessor.calculateNormals(mesh);
+            updateModelInfo();
+        }
+    }
+
+    private void updateModelInfo() {
+        if (mesh != null) {
+            verticesLabel.setText("Vertices: " + mesh.vertices.size());
+            polygonsLabel.setText("Polygons: " + mesh.polygons.size());
+            normalsLabel.setText("Normals: " + mesh.normals.size());
+        } else {
+            verticesLabel.setText("Vertices: 0");
+            polygonsLabel.setText("Polygons: 0");
+            normalsLabel.setText("Normals: 0");
         }
     }
 
@@ -218,6 +284,11 @@ public class GuiController {
     @FXML
     private void onRunTestsButtonClick() {
         onRunTestsMenuItemClick();
+    }
+
+    @FXML
+    private void onFillPolygonsToggle() {
+        fillPolygonsEnabled = fillPolygonsToggle.isSelected();
     }
 
     private void saveModel(final boolean applyTransform) {
