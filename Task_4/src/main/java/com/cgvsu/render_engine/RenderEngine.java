@@ -17,6 +17,9 @@ import com.cgvsu.math.matrix.impl.Matrix4f;
 import com.cgvsu.math.vector.impl.Vector2fImpl;
 import com.cgvsu.math.vector.impl.Vector3fImpl;
 import com.cgvsu.scene.SceneManager;
+import com.cgvsu.scene.CameraManager;
+import com.cgvsu.util.ModelGenerator;
+import com.cgvsu.math.matrix.impl.Matrix4f;
 
 public class RenderEngine {
 
@@ -186,6 +189,122 @@ public class RenderEngine {
                 }
             }
         }
+    }
+
+    public static void renderSceneWithCameras(
+            final GraphicsContext graphicsContext,
+            final Camera camera,
+            final SceneManager sceneManager,
+            final CameraManager cameraManager,
+            final boolean showCameras,
+            final int width,
+            final int height)
+    {
+        // Инициализация буферов
+        if (zBuffer == null || zBuffer.getWidth() != width || zBuffer.getHeight() != height) {
+            zBuffer = new ZBuffer(width, height);
+            frameBuffer = new WritableImage(width, height);
+        }
+        
+        zBuffer.clear();
+        
+        // Создаем новый frameBuffer каждый кадр для очистки старого содержимого
+        if (useRasterization) {
+            frameBuffer = new WritableImage(width, height);
+        }
+        
+        List<SceneManager.SceneModel> models = sceneManager.getModels();
+        boolean hasRasterizedModels = false;
+        
+        // Рендерим обычные модели
+        for (SceneManager.SceneModel sceneModel : models) {
+            if (!sceneModel.isVisible()) {
+                continue;
+            }
+            
+            if (useRasterization) {
+                renderModelRasterized(camera, sceneModel.getModel(), width, height);
+                hasRasterizedModels = true;
+            } else {
+                renderModel(graphicsContext, camera, sceneModel.getModel(), width, height);
+            }
+        }
+        
+        // Рендерим камеры как 3D объекты, если включено
+        if (showCameras && cameraManager != null) {
+            Model cameraModel = ModelGenerator.createCameraModel();
+            List<CameraManager.SceneCamera> visibleCameras = cameraManager.getVisibleCameras();
+            
+            for (CameraManager.SceneCamera sceneCamera : visibleCameras) {
+                if (sceneCamera.isVisible()) {
+                    Camera cam = sceneCamera.getCamera();
+                    Vector3fImpl camPos = cam.getPosition();
+                    Vector3fImpl camTarget = cam.getTarget();
+                    
+                    // Создаем копию модели камеры и устанавливаем её трансформацию
+                    Model cameraModelInstance = createCameraModelAtPosition(cameraModel, camPos, camTarget);
+                    
+                    if (useRasterization) {
+                        renderModelRasterized(camera, cameraModelInstance, width, height);
+                        hasRasterizedModels = true;
+                    } else {
+                        renderModel(graphicsContext, camera, cameraModelInstance, width, height);
+                    }
+                }
+            }
+        }
+        
+        // Рисуем frameBuffer один раз после рендеринга всех моделей (если используется растеризация)
+        if (hasRasterizedModels) {
+            graphicsContext.drawImage(frameBuffer, 0, 0);
+            // Рисуем каркас поверх растеризованных моделей, если это включено
+            if (drawPolygonalMesh) {
+                graphicsContext.setStroke(Color.BLUE); // Цвет для обычных моделей
+                graphicsContext.setLineWidth(1);
+                for (SceneManager.SceneModel sceneModel : models) {
+                    if (sceneModel.isVisible()) {
+                        renderModel(graphicsContext, camera, sceneModel.getModel(), width, height);
+                    }
+                }
+                
+                // Рендерим каркас камер другим цветом
+                if (showCameras && cameraManager != null) {
+                    graphicsContext.setStroke(Color.RED); // Красный для камер
+                    graphicsContext.setLineWidth(2);
+                    Model cameraModel = ModelGenerator.createCameraModel();
+                    List<CameraManager.SceneCamera> visibleCameras = cameraManager.getVisibleCameras();
+                    
+                    for (CameraManager.SceneCamera sceneCamera : visibleCameras) {
+                        if (sceneCamera.isVisible()) {
+                            Camera cam = sceneCamera.getCamera();
+                            Vector3fImpl camPos = cam.getPosition();
+                            Vector3fImpl camTarget = cam.getTarget();
+                            Model cameraModelInstance = createCameraModelAtPosition(cameraModel, camPos, camTarget);
+                            renderModel(graphicsContext, camera, cameraModelInstance, width, height);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private static Model createCameraModelAtPosition(Model cameraModel, Vector3fImpl position, Vector3fImpl target) {
+        // Создаем копию модели камеры
+        Model instance = new Model();
+        instance.vertices = new ArrayList<>(cameraModel.vertices);
+        instance.textureVertices = new ArrayList<>(cameraModel.textureVertices);
+        instance.normals = new ArrayList<>(cameraModel.normals);
+        instance.polygons = new ArrayList<>(cameraModel.polygons);
+        
+        // Устанавливаем позицию камеры
+        instance.translation = new Vector3f(position.getX(), position.getY(), position.getZ());
+        
+        // Пока не применяем поворот - модель будет просто в позиции камеры
+        // Для полноценного отображения направления камеры потребуется более сложная трансформация
+        instance.rotation = new Vector3f(0, 0, 0);
+        instance.scale = 1.0f;
+        
+        return instance;
     }
 
     private static void renderModel(

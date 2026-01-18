@@ -95,6 +95,9 @@
                         <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="PAGE_DOWN"/>
                     </accelerator>
                 </MenuItem>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" onAction="#onAddCamera" text="Добавить камеру"/>
+                <MenuItem mnemonicParsing="false" onAction="#onDeleteCamera" text="Удалить камеру"/>
             </Menu>
 
             <Menu mnemonicParsing="false" text="Текстура">
@@ -117,6 +120,7 @@
             <!-- Кнопка переключения между окошками -->
             <HBox spacing="5">
                 <Button text="Модели" fx:id="modelsSceneButton" onAction="#onSwitchToScene1" style="-fx-padding: 5; -fx-font-weight: bold; -fx-max-width: Infinity;" HBox.hgrow="ALWAYS"/>
+                <Button text="Камеры" fx:id="camerasSceneButton" onAction="#onSwitchToScene3" style="-fx-padding: 5; -fx-max-width: Infinity;" HBox.hgrow="ALWAYS"/>
                 <Button text="Визуализация" fx:id="visualSceneButton" onAction="#onSwitchToScene2" style="-fx-padding: 5; -fx-max-width: Infinity;" HBox.hgrow="ALWAYS"/>
             </HBox>
             <Separator/>
@@ -161,15 +165,29 @@
                         <Button text="Очистить текстуру" onAction="#onClearTextureMenuItemClick" HBox.hgrow="ALWAYS"/>
                     </HBox>
                     <HBox spacing="5">
-                        <Button text="Освещение" onAction="#onToggleLightMenuItemClick" HBox.hgrow="ALWAYS"/>
-                    </HBox>
-                    <HBox spacing="5">
                         <Button text="Пересчитать нормали" onAction="#onCalculateNormalsMenuItemClick" HBox.hgrow="ALWAYS"/>
                     </HBox>
                     <HBox spacing="5">
                         <Button text="Растеризация" onAction="#onToggleRasterizationMenuItemClick" HBox.hgrow="ALWAYS"/>
                     </HBox>
                 </VBox>
+            </VBox>
+            
+            <!-- Окошко 3 - Управление камерами -->
+            <VBox fx:id="scene3Panel" spacing="10" visible="false" managed="false" VBox.vgrow="ALWAYS">
+                <Label text="Список камер" styleClass="section-title"/>
+                <ListView fx:id="camerasListView" prefHeight="200" onMouseClicked="#onCameraListClick" VBox.vgrow="ALWAYS"/>
+                <HBox spacing="5">
+                    <Button text="Добавить камеру" onAction="#onAddCamera" styleClass="success-button" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <HBox spacing="5">
+                    <Button text="Удалить камеру" onAction="#onDeleteCamera" styleClass="danger-button" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <Separator/>
+                <Label text="Информация" styleClass="section-title"/>
+                <Label fx:id="cameraInfoLabel" text="Камера не выбрана" wrapText="true"/>
+                <Separator/>
+                <CheckBox fx:id="showCamerasCheckBox" text="Показывать камеры на сцене" selected="true" onAction="#onShowCamerasToggled"/>
             </VBox>
             
             <Separator/>

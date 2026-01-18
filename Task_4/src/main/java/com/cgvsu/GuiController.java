@@ -19,7 +19,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.input.DragEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.input.Dragboard;
 import javafx.scene.layout.AnchorPane;
@@ -94,13 +93,26 @@ public class GuiController {
     @FXML
     private CheckBox useLightingCheckBox;
 
+    @FXML
+    private VBox scene3Panel;
+
+    @FXML
+    private Button camerasSceneButton;
+
+    @FXML
+    private ListView<com.cgvsu.scene.CameraManager.SceneCamera> camerasListView;
+
+    @FXML
+    private Label cameraInfoLabel;
+
+    @FXML
+    private CheckBox showCamerasCheckBox;
+
     private SceneManager sceneManager = new SceneManager();
+    private com.cgvsu.scene.CameraManager cameraManager = new com.cgvsu.scene.CameraManager();
     private boolean isDarkTheme = false;
 
-    private Camera camera = new Camera(
-        new Vector3fImpl(0, 0, 100),
-        new Vector3fImpl(0, 0, 0),
-            1.0F, 1, 0.01F, 100);
+    private Camera camera; // Активная камера из CameraManager
 
     private Timeline timeline;
 
@@ -145,6 +157,37 @@ public class GuiController {
             }
         });
 
+        // Настройка ListView для камер
+        camerasListView.setCellFactory(param -> new ListCell<com.cgvsu.scene.CameraManager.SceneCamera>() {
+            @Override
+            protected void updateItem(com.cgvsu.scene.CameraManager.SceneCamera item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item.getName() + " (ID: " + item.getId() + ")");
+                    if (cameraManager.getActiveCamera() == item) {
+                        setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
+        });
+
+        // Слушатель изменения выбора камеры в ListView
+        camerasListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                cameraManager.setActiveCamera(newVal);
+                camera = cameraManager.getActiveCameraObject();
+                refreshCameraListCells();
+            }
+        });
+
+        // Инициализируем камеру из CameraManager
+        camera = cameraManager.getActiveCameraObject();
+
         timeline = new Timeline();
         timeline.setCycleCount(Animation.INDEFINITE);
 
@@ -159,8 +202,9 @@ public class GuiController {
             canvas.getGraphicsContext2D().clearRect(0, 0, width, height);
             camera.setAspectRatio((float) (width / height));
 
-            if (sceneManager.hasModels()) {
-                RenderEngine.renderScene(canvas.getGraphicsContext2D(), camera, sceneManager, (int) width, (int) height);
+            if (sceneManager.hasModels() || cameraManager.hasCameras()) {
+                boolean showCameras = showCamerasCheckBox != null && showCamerasCheckBox.isSelected();
+                RenderEngine.renderSceneWithCameras(canvas.getGraphicsContext2D(), camera, sceneManager, cameraManager, showCameras, (int) width, (int) height);
             }
 
             updateModelInfo();
@@ -174,6 +218,7 @@ public class GuiController {
         setupFpsControls();
         setupDragAndDrop();
         updateModelsList();
+        updateCamerasList();
         applyTheme();
 
         anchorPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
@@ -768,8 +813,11 @@ public class GuiController {
         scene1Panel.setManaged(true);
         scene2Panel.setVisible(false);
         scene2Panel.setManaged(false);
+        scene3Panel.setVisible(false);
+        scene3Panel.setManaged(false);
         modelsSceneButton.setStyle("-fx-padding: 5; -fx-font-weight: bold;");
         visualSceneButton.setStyle("-fx-padding: 5;");
+        camerasSceneButton.setStyle("-fx-padding: 5;");
     }
 
     @FXML
@@ -778,8 +826,24 @@ public class GuiController {
         scene1Panel.setManaged(false);
         scene2Panel.setVisible(true);
         scene2Panel.setManaged(true);
+        scene3Panel.setVisible(false);
+        scene3Panel.setManaged(false);
         modelsSceneButton.setStyle("-fx-padding: 5;");
         visualSceneButton.setStyle("-fx-padding: 5; -fx-font-weight: bold;");
+        camerasSceneButton.setStyle("-fx-padding: 5;");
+    }
+
+    @FXML
+    private void onSwitchToScene3() {
+        scene1Panel.setVisible(false);
+        scene1Panel.setManaged(false);
+        scene2Panel.setVisible(false);
+        scene2Panel.setManaged(false);
+        scene3Panel.setVisible(true);
+        scene3Panel.setManaged(true);
+        modelsSceneButton.setStyle("-fx-padding: 5;");
+        visualSceneButton.setStyle("-fx-padding: 5;");
+        camerasSceneButton.setStyle("-fx-padding: 5; -fx-font-weight: bold;");
     }
 
     @FXML
@@ -804,5 +868,95 @@ public class GuiController {
         RenderEngine.setUseLighting(selected);
         RenderEngine.setLightEnabled(selected);
     }
-}
 
+    // ===================== Управление камерами =====================
+
+    @FXML
+    private void onAddCamera() {
+        int cameraCount = cameraManager.getCameraCount();
+        String newCameraName = "Камера " + (cameraCount + 1);
+        
+        // Создаем новую камеру в позиции немного смещенной от текущей
+        Vector3fImpl newPosition = camera.getPosition().add(new Vector3fImpl(5, 5, 5));
+        Camera newCamera = new Camera(
+            newPosition,
+            new Vector3fImpl(0, 0, 0),
+            1.0F, 1, 0.01F, 100
+        );
+        
+        cameraManager.addCamera(newCamera, newCameraName);
+        updateCamerasList();
+        ErrorHandler.showInfo("Камера добавлена", "Добавлена новая камера: " + newCameraName);
+    }
+
+    @FXML
+    private void onDeleteCamera() {
+        com.cgvsu.scene.CameraManager.SceneCamera selectedCamera = camerasListView.getSelectionModel().getSelectedItem();
+        if (selectedCamera == null) {
+            ErrorHandler.showError("Камера не выбрана", "Пожалуйста, выберите камеру для удаления.");
+            return;
+        }
+
+        if (cameraManager.getCameraCount() <= 1) {
+            ErrorHandler.showError("Невозможно удалить", "Нельзя удалить последнюю камеру.");
+            return;
+        }
+
+        cameraManager.removeCamera(selectedCamera);
+        camera = cameraManager.getActiveCameraObject();
+        updateCamerasList();
+        ErrorHandler.showInfo("Камера удалена", "Камера " + selectedCamera.getName() + " была удалена.");
+    }
+
+    @FXML
+    private void onCameraListClick() {
+        updateCameraInfo();
+    }
+
+    @FXML
+    private void onShowCamerasToggled() {
+        // Обработчик для галочки отображения камер на сцене
+        // Реальная отрисовка будет в RenderEngine
+    }
+
+    private void updateCamerasList() {
+        ObservableList<com.cgvsu.scene.CameraManager.SceneCamera> cameras = 
+            FXCollections.observableArrayList(cameraManager.getCameras());
+        camerasListView.setItems(cameras);
+        
+        // Выделяем активную камеру
+        com.cgvsu.scene.CameraManager.SceneCamera activeCamera = cameraManager.getActiveCamera();
+        if (activeCamera != null) {
+            camerasListView.getSelectionModel().select(activeCamera);
+        }
+        
+        updateCameraInfo();
+    }
+
+    private void refreshCameraListCells() {
+        camerasListView.refresh();
+        updateCameraInfo();
+    }
+
+    private void updateCameraInfo() {
+        com.cgvsu.scene.CameraManager.SceneCamera activeCamera = cameraManager.getActiveCamera();
+        if (activeCamera == null) {
+            cameraInfoLabel.setText("Камера не выбрана");
+            return;
+        }
+
+        Camera cam = activeCamera.getCamera();
+        Vector3fImpl pos = cam.getPosition();
+        Vector3fImpl target = cam.getTarget();
+        
+        String info = String.format(
+            "Имя: %s\nID: %d\nПозиция: (%.2f, %.2f, %.2f)\nЦель: (%.2f, %.2f, %.2f)",
+            activeCamera.getName(),
+            activeCamera.getId(),
+            pos.getX(), pos.getY(), pos.getZ(),
+            target.getX(), target.getY(), target.getZ()
+        );
+        
+        cameraInfoLabel.setText(info);
+    }
+}
