@@ -113,6 +113,14 @@ public class GuiController {
             }
         });
 
+        // Слушатель изменения выбора в ListView
+        modelsListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                sceneManager.setActiveModel(newVal);
+                refreshModelListCells();
+            }
+        });
+
         timeline = new Timeline();
         timeline.setCycleCount(Animation.INDEFINITE);
 
@@ -305,11 +313,8 @@ public class GuiController {
 
     @FXML
     public void onModelListClick(MouseEvent event) {
-        SceneManager.SceneModel selected = modelsListView.getSelectionModel().getSelectedItem();
-        if (selected != null) {
-            sceneManager.setActiveModel(selected);
-            updateModelsList();
-        }
+        // Выбор обрабатывается через selectedItemProperty listener
+        // Этот метод оставлен для совместимости, если нужно
     }
 
     @FXML
@@ -333,6 +338,12 @@ public class GuiController {
         if (!items.isEmpty() && sceneManager.getActiveModel() != null) {
             modelsListView.getSelectionModel().select(sceneManager.getActiveModel());
         }
+        refreshModelListCells();
+    }
+
+    private void refreshModelListCells() {
+        // Обновляем все ячейки для корректного отображения активной модели
+        modelsListView.refresh();
     }
 
     private void updateModelInfo() {
