@@ -58,8 +58,13 @@ public class RenderEngine {
         
         zBuffer.clear();
         
+        // Создаем новый frameBuffer при изменении размера
+        if (useRasterization && (frameBuffer == null || 
+            frameBuffer.getWidth() != width || frameBuffer.getHeight() != height)) {
+            frameBuffer = new WritableImage(width, height);
+        }
+        
         if (useRasterization) {
-            clearFrameBuffer(width, height);
             renderModelRasterized(camera, mesh, width, height);
             graphicsContext.drawImage(frameBuffer, 0, 0);
             if (useWireframe) {
@@ -87,9 +92,10 @@ public class RenderEngine {
         
         zBuffer.clear();
         
-        // Очищаем frameBuffer перед рендерингом (если используется растеризация)
+        // Создаем новый frameBuffer каждый кадр для очистки старого содержимого
+        // Это эффективнее, чем очищать пиксель за пикселем
         if (useRasterization) {
-            clearFrameBuffer(width, height);
+            frameBuffer = new WritableImage(width, height);
         }
         
         List<SceneManager.SceneModel> models = sceneManager.getModels();
@@ -254,19 +260,6 @@ public class RenderEngine {
         // Примечание: frameBuffer рисуется один раз после рендеринга всех моделей в renderScene
     }
 
-    private static void clearFrameBuffer(int width, int height) {
-        if (frameBuffer == null) {
-            return;
-        }
-        PixelWriter pixelWriter = frameBuffer.getPixelWriter();
-        // Заполняем frameBuffer прозрачным цветом (или цветом фона)
-        Color backgroundColor = Color.WHITE;
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                pixelWriter.setColor(x, y, backgroundColor);
-            }
-        }
-    }
 
     private static Vector3fImpl multiplyMatrix4ByVector(Matrix4f matrix, Vector3fImpl vector) {
         float x = vector.getX();
