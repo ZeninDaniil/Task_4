@@ -59,7 +59,14 @@ public class RenderEngine {
         zBuffer.clear();
         
         if (useRasterization) {
-            renderModelRasterized(graphicsContext, camera, mesh, width, height);
+            clearFrameBuffer(width, height);
+            renderModelRasterized(camera, mesh, width, height);
+            graphicsContext.drawImage(frameBuffer, 0, 0);
+            if (useWireframe) {
+                graphicsContext.setStroke(Color.BLACK);
+                graphicsContext.setLineWidth(1);
+                renderModel(graphicsContext, camera, mesh, width, height);
+            }
         } else {
             renderModel(graphicsContext, camera, mesh, width, height);
         }
@@ -80,11 +87,33 @@ public class RenderEngine {
         
         zBuffer.clear();
         
+        // Очищаем frameBuffer перед рендерингом (если используется растеризация)
+        if (useRasterization) {
+            clearFrameBuffer(width, height);
+        }
+        
         List<SceneManager.SceneModel> models = sceneManager.getModels();
+        boolean hasRasterizedModels = false;
+        
         for (SceneManager.SceneModel sceneModel : models) {
             if (useRasterization) {
-                renderModelRasterized(graphicsContext, camera, sceneModel.getModel(), width, height);
+                renderModelRasterized(camera, sceneModel.getModel(), width, height);
+                hasRasterizedModels = true;
             } else {
+                renderModel(graphicsContext, camera, sceneModel.getModel(), width, height);
+            }
+        }
+        
+        // Рисуем frameBuffer один раз после рендеринга всех моделей (если используется растеризация)
+        if (hasRasterizedModels) {
+            graphicsContext.drawImage(frameBuffer, 0, 0);
+        }
+        
+        // Рисуем каркас поверх (если включен)
+        if (useWireframe && hasRasterizedModels) {
+            graphicsContext.setStroke(Color.BLACK);
+            graphicsContext.setLineWidth(1);
+            for (SceneManager.SceneModel sceneModel : models) {
                 renderModel(graphicsContext, camera, sceneModel.getModel(), width, height);
             }
         }
@@ -137,7 +166,6 @@ public class RenderEngine {
     }
 
     private static void renderModelRasterized(
-            final GraphicsContext graphicsContext,
             final Camera camera,
             final Model mesh,
             final int width,
@@ -223,15 +251,20 @@ public class RenderEngine {
                     ambientStrength
             );
         }
+        // Примечание: frameBuffer рисуется один раз после рендеринга всех моделей в renderScene
+    }
 
-        // Отображение растеризованного изображения
-        graphicsContext.drawImage(frameBuffer, 0, 0);
-
-        // Опционально: рисуем каркас поверх
-        if (useWireframe) {
-            graphicsContext.setStroke(Color.BLACK);
-            graphicsContext.setLineWidth(1);
-            renderModel(graphicsContext, camera, mesh, width, height);
+    private static void clearFrameBuffer(int width, int height) {
+        if (frameBuffer == null) {
+            return;
+        }
+        PixelWriter pixelWriter = frameBuffer.getPixelWriter();
+        // Заполняем frameBuffer прозрачным цветом (или цветом фона)
+        Color backgroundColor = Color.WHITE;
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                pixelWriter.setColor(x, y, backgroundColor);
+            }
         }
     }
 
