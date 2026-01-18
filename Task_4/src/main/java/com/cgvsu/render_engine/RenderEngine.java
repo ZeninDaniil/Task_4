@@ -32,6 +32,11 @@ public class RenderEngine {
     public static Vector3f lightDirection = new Vector3f(-0.5f, -0.5f, 1.0f);  // Направление света (сверху-спереди-справа)
     public static float lightIntensity = 1.2f;  // Интенсивность света
     
+    // Режимы отрисовки
+    public static boolean drawPolygonalMesh = true;  // Рисовать полигональную сетку (каркас)
+    public static boolean useTexture = false;         // Использовать текстуру
+    public static boolean useLighting = false;        // Использовать освещение
+    
     static {
         // Нормализуем направление света при инициализации
         lightDirection.normalize();
@@ -70,6 +75,30 @@ public class RenderEngine {
         lightIntensity = Math.max(0, Math.min(2, intensity));
     }
 
+    public static void setDrawPolygonalMesh(boolean enabled) {
+        drawPolygonalMesh = enabled;
+    }
+
+    public static void setUseTexture(boolean enabled) {
+        useTexture = enabled;
+    }
+
+    public static void setUseLighting(boolean enabled) {
+        useLighting = enabled;
+    }
+
+    public static boolean isDrawPolygonalMesh() {
+        return drawPolygonalMesh;
+    }
+
+    public static boolean isUseTexture() {
+        return useTexture;
+    }
+
+    public static boolean isUseLighting() {
+        return useLighting;
+    }
+
     public static void render(
             final GraphicsContext graphicsContext,
             final Camera camera,
@@ -94,7 +123,7 @@ public class RenderEngine {
         if (useRasterization) {
             renderModelRasterized(camera, mesh, width, height);
             graphicsContext.drawImage(frameBuffer, 0, 0);
-            if (useWireframe) {
+            if (drawPolygonalMesh) {
                 graphicsContext.setStroke(Color.BLACK);
                 graphicsContext.setLineWidth(1);
                 renderModel(graphicsContext, camera, mesh, width, height);
@@ -140,6 +169,14 @@ public class RenderEngine {
         // Рисуем frameBuffer один раз после рендеринга всех моделей (если используется растеризация)
         if (hasRasterizedModels) {
             graphicsContext.drawImage(frameBuffer, 0, 0);
+            // Рисуем каркас поверх растеризованных моделей, если это включено
+            if (drawPolygonalMesh) {
+                graphicsContext.setStroke(Color.BLACK);
+                graphicsContext.setLineWidth(1);
+                for (SceneManager.SceneModel sceneModel : models) {
+                    renderModel(graphicsContext, camera, sceneModel.getModel(), width, height);
+                }
+            }
         }
     }
 
@@ -167,7 +204,7 @@ public class RenderEngine {
 
             // Вычисляем освещение для полигона
             float lightIntensityValue = 1.0f;
-            if (lightEnabled && !mesh.normals.isEmpty() && !polygon.getNormalIndices().isEmpty()) {
+            if (useLighting && lightEnabled && !mesh.normals.isEmpty() && !polygon.getNormalIndices().isEmpty()) {
                 // Берем нормаль первой вершины полигона
                 int normalIndex = polygon.getNormalIndices().get(0);
                 com.cgvsu.math.Vector3f normal = mesh.normals.get(normalIndex);
@@ -232,12 +269,12 @@ public class RenderEngine {
         Matrix4f modelViewMatrix = (Matrix4f) viewMatrix.multiply(modelMatrix);
 
         // Направление света (от камеры или установленное пользователем)
-        Vector3f lightDir = lightEnabled ? new Vector3f(lightDirection.x, lightDirection.y, lightDirection.z) 
+        Vector3f lightDir = (useLighting && lightEnabled) ? new Vector3f(lightDirection.x, lightDirection.y, lightDirection.z) 
                                           : new Vector3f(0, 0, 1);
         lightDir.normalize();
 
         PixelWriter pixelWriter = frameBuffer.getPixelWriter();
-        WritableImage texture = TextureManager.getInstance().getCurrentTexture();
+        WritableImage texture = useTexture ? TextureManager.getInstance().getCurrentTexture() : null;
 
         final int nPolygons = mesh.polygons.size();
         for (int polygonInd = 0; polygonInd < nPolygons; ++polygonInd) {
@@ -255,7 +292,7 @@ public class RenderEngine {
             Vector2f[] texCoords = new Vector2f[3];
 
             boolean hasNormals = !mesh.normals.isEmpty() && !polygon.getNormalIndices().isEmpty();
-            boolean hasTexCoords = !mesh.textureVertices.isEmpty() && !polygon.getTextureVertexIndices().isEmpty();
+            boolean hasTexCoords = useTexture && !mesh.textureVertices.isEmpty() && !polygon.getTextureVertexIndices().isEmpty();
 
             for (int i = 0; i < 3; i++) {
                 // Преобразование вершины в экранные координаты
@@ -300,7 +337,7 @@ public class RenderEngine {
                     texture,
                     lightDir,
                     ambientStrength,
-                    lightEnabled,
+                    useLighting && lightEnabled,
                     lightIntensity
             );
         }

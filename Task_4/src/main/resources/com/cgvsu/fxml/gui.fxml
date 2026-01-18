@@ -14,6 +14,7 @@
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.canvas.Canvas?>
 <?import javafx.geometry.Insets?>
 
@@ -102,11 +103,6 @@
             </Menu>
 
             <Menu mnemonicParsing="false" text="Вид">
-                <MenuItem mnemonicParsing="false" onAction="#onToggleRasterizationMenuItemClick" text="Переключить растеризацию"/>
-                <MenuItem mnemonicParsing="false" onAction="#onToggleWireframeMenuItemClick" text="Переключить каркас"/>
-                <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" onAction="#onToggleLightMenuItemClick" text="Переключить освещение"/>
-                <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" onAction="#onToggleTheme" text="Переключить тему (Светлая/Темная)"/>
             </Menu>
         </MenuBar>
@@ -117,22 +113,65 @@
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
-            <Label text="Модели" styleClass="section-title"/>
-            <ListView fx:id="modelsListView" prefHeight="200" onMouseClicked="#onModelListClick"/>
+            
+            <!-- Кнопка переключения между окошками -->
             <HBox spacing="5">
-                <Button text="Удалить модель" onAction="#onDeleteModel" styleClass="danger-button"/>
+                <Button text="Модели" fx:id="modelsSceneButton" onAction="#onSwitchToScene1" style="-fx-padding: 5; -fx-font-weight: bold; -fx-max-width: Infinity;" HBox.hgrow="ALWAYS"/>
+                <Button text="Визуализация" fx:id="visualSceneButton" onAction="#onSwitchToScene2" style="-fx-padding: 5; -fx-max-width: Infinity;" HBox.hgrow="ALWAYS"/>
             </HBox>
             <Separator/>
-            <Label text="Информация" styleClass="section-title"/>
-            <Label fx:id="modelInfoLabel" text="Модель не выбрана" wrapText="true"/>
-            <Separator/>
-            <Label text="Удаление" styleClass="section-title"/>
-            <HBox spacing="5">
-                <Button text="Удалить вершину" onAction="#onDeleteSelectedVertex" styleClass="danger-button"/>
-            </HBox>
-            <HBox spacing="5">
-                <Button text="Удалить полигон" onAction="#onDeleteSelectedPolygon" styleClass="danger-button"/>
-            </HBox>
+            
+            <!-- Окошко 1 - Управление моделями -->
+            <VBox fx:id="scene1Panel" spacing="10" VBox.vgrow="ALWAYS">
+                <Label text="Список моделей" styleClass="section-title"/>
+                <ListView fx:id="modelsListView" prefHeight="200" onMouseClicked="#onModelListClick" VBox.vgrow="ALWAYS"/>
+                <HBox spacing="5">
+                    <Button text="Удалить модель" onAction="#onDeleteModel" styleClass="danger-button"/>
+                </HBox>
+                <Separator/>
+                <Label text="Информация" styleClass="section-title"/>
+                <Label fx:id="modelInfoLabel" text="Модель не выбрана" wrapText="true"/>
+                <Separator/>
+                <Label text="Удаление" styleClass="section-title"/>
+                <HBox spacing="5">
+                    <Button text="Удалить вершину" onAction="#onDeleteSelectedVertex" styleClass="danger-button"/>
+                </HBox>
+                <HBox spacing="5">
+                    <Button text="Удалить полигон" onAction="#onDeleteSelectedPolygon" styleClass="danger-button"/>
+                </HBox>
+            </VBox>
+            
+            <!-- Окошко 2 - Режимы отрисовки и функции -->
+            <VBox fx:id="scene2Panel" spacing="10" visible="false" managed="false" VBox.vgrow="ALWAYS">
+                <Label text="Режимы отрисовки" styleClass="section-title"/>
+                <CheckBox fx:id="drawMeshCheckBox" text="Рисовать полигональную сетку" selected="true" onAction="#onDrawMeshToggled"/>
+                <CheckBox fx:id="useTextureCheckBox" text="Использовать текстуру" selected="false" onAction="#onUseTextureToggled"/>
+                <CheckBox fx:id="useLightingCheckBox" text="Использовать освещение" selected="false" onAction="#onUseLightingToggled"/>
+                
+                <Separator/>
+                <Label text="Функции обработки" styleClass="section-title"/>
+                <VBox spacing="5" VBox.vgrow="ALWAYS">
+                    <HBox spacing="5">
+                        <Button text="Триангулировать" onAction="#onTriangulateModelMenuItemClick" HBox.hgrow="ALWAYS"/>
+                    </HBox>
+                    <HBox spacing="5">
+                        <Button text="Загрузить текстуру" onAction="#onLoadTextureMenuItemClick" HBox.hgrow="ALWAYS"/>
+                    </HBox>
+                    <HBox spacing="5">
+                        <Button text="Очистить текстуру" onAction="#onClearTextureMenuItemClick" HBox.hgrow="ALWAYS"/>
+                    </HBox>
+                    <HBox spacing="5">
+                        <Button text="Освещение" onAction="#onToggleLightMenuItemClick" HBox.hgrow="ALWAYS"/>
+                    </HBox>
+                    <HBox spacing="5">
+                        <Button text="Пересчитать нормали" onAction="#onCalculateNormalsMenuItemClick" HBox.hgrow="ALWAYS"/>
+                    </HBox>
+                    <HBox spacing="5">
+                        <Button text="Растеризация" onAction="#onToggleRasterizationMenuItemClick" HBox.hgrow="ALWAYS"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+            
             <Separator/>
             <ToggleButton fx:id="themeToggle" text="Темная тема" onAction="#onToggleTheme"/>
         </VBox>

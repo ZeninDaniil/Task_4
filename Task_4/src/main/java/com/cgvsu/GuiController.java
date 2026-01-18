@@ -70,6 +70,27 @@ public class GuiController {
     @FXML
     private VBox sidePanel;
 
+    @FXML
+    private VBox scene1Panel;
+
+    @FXML
+    private VBox scene2Panel;
+
+    @FXML
+    private Button modelsSceneButton;
+
+    @FXML
+    private Button visualSceneButton;
+
+    @FXML
+    private CheckBox drawMeshCheckBox;
+
+    @FXML
+    private CheckBox useTextureCheckBox;
+
+    @FXML
+    private CheckBox useLightingCheckBox;
+
     private SceneManager sceneManager = new SceneManager();
     private boolean isDarkTheme = false;
 
@@ -672,6 +693,49 @@ public class GuiController {
         RenderEngine.setLightEnabled(currentState);
         ErrorHandler.showInfo("Освещение", 
                 currentState ? "Освещение включено" : "Освещение выключено");
+    }
+
+    @FXML
+    private void onSwitchToScene1() {
+        scene1Panel.setVisible(true);
+        scene1Panel.setManaged(true);
+        scene2Panel.setVisible(false);
+        scene2Panel.setManaged(false);
+        modelsSceneButton.setStyle("-fx-padding: 5; -fx-font-weight: bold;");
+        visualSceneButton.setStyle("-fx-padding: 5;");
+    }
+
+    @FXML
+    private void onSwitchToScene2() {
+        scene1Panel.setVisible(false);
+        scene1Panel.setManaged(false);
+        scene2Panel.setVisible(true);
+        scene2Panel.setManaged(true);
+        modelsSceneButton.setStyle("-fx-padding: 5;");
+        visualSceneButton.setStyle("-fx-padding: 5; -fx-font-weight: bold;");
+    }
+
+    @FXML
+    private void onDrawMeshToggled() {
+        boolean selected = drawMeshCheckBox.isSelected();
+        RenderEngine.setDrawPolygonalMesh(selected);
+        RenderEngine.setUseRasterization(!selected); // Если не рисовать сетку, используем растеризацию
+    }
+
+    @FXML
+    private void onUseTextureToggled() {
+        boolean selected = useTextureCheckBox.isSelected();
+        RenderEngine.setUseTexture(selected);
+        if (selected) {
+            RenderEngine.setUseRasterization(true); // Включаем растеризацию для текстур
+        }
+    }
+
+    @FXML
+    private void onUseLightingToggled() {
+        boolean selected = useLightingCheckBox.isSelected();
+        RenderEngine.setUseLighting(selected);
+        RenderEngine.setLightEnabled(selected);
     }
 }
 
